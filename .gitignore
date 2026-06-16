@@ -1,0 +1,4 @@
+# Obsidian - estado local/volátil de UI (não versionar)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
