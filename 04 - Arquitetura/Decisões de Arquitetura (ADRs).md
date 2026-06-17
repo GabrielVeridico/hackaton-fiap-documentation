@@ -17,3 +17,14 @@ projeto: Conexão Solidária
   - (−) Observabilidade fragmentada: a Function fica **fora** do Prometheus/Grafana in-cluster (métricas em Application Insights).
   - (−) Deploy/CI-CD próprios (`azure/functions-action`), separados do pipeline de imagem → AKS.
   - (−) *At-least-once*: reentrega pode gerar log de notificação duplicado (aceitável no MVP).
+
+## ADR-002 — Zabbix para monitoramento de infraestrutura e disponibilidade (complementar ao Prometheus/Grafana)
+- **Contexto:** O enunciado exige observabilidade com dashboards de métricas reais, hoje atendida por **OpenTelemetry → Prometheus → Grafana** (métricas de aplicação e negócio). Além disso, o time precisa de monitoramento de **infraestrutura/host** (CPU, memória, pods/nós do AKS) e de **disponibilidade/uptime** com **alertas** operacionais — capacidades em que o Zabbix é maduro e idiomático. Decisões anteriores haviam descartado o Zabbix; essa posição foi **revista**.
+- **Decisão:** Adotar o **Zabbix** como camada **complementar** de observabilidade, responsável por **infra/host, disponibilidade e alertas**, **sem** substituir o Prometheus/Grafana (que seguem com as métricas de aplicação/negócio). Coleta por **três vias**: (1) *scrape* dos endpoints `/metrics` (formato Prometheus) via item HTTP + *preprocessing* Prometheus; (2) **Zabbix Agent** (DaemonSet) com templates de host/Kubernetes para CPU/memória/pods/nós; (3) *web scenarios* monitorando `/health` e `/ready` para uptime/disponibilidade. A **NotificationFunction** (Azure Function, fora do AKS) **permanece** em Application Insights / Azure Monitor — fora do escopo do Zabbix.
+- **Consequências:**
+  - (+) Monitoramento de infra e alertas de disponibilidade maduros, com escalonamento/notificação nativos do Zabbix.
+  - (+) Reaproveita os endpoints `/metrics` e `/health` já expostos pelos serviços — **sem mudança na aplicação**.
+  - (+) Divisão clara de responsabilidades: **Grafana/Prometheus** = aplicação/negócio; **Zabbix** = infra/host/disponibilidade.
+  - (−) Duas plataformas de observabilidade para operar e manter (configuração do Zabbix Server + Agent no cluster).
+  - (−) Possível sobreposição de métricas de infra entre Prometheus e Zabbix — definir a fonte de verdade por tipo de métrica para evitar alertas duplicados.
+  - (−) A Function segue fora do painel unificado (continua em Application Insights).

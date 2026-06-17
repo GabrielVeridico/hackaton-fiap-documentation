@@ -19,7 +19,7 @@ projeto: Conexão Solidária
 1. **Microsserviços** — **UserAPI**, **DonationAPI** e **PaymentAPI** (≥ 2 exigidos). Ver [[Requisitos Técnicos]].
 2. **Mensageria assíncrona** — broker **Azure ServiceBus**. Saga de 2 eventos: DonationAPI publica `DoacaoSolicitadaEvent` → PaymentAPI processa (mock) e publica `PagamentoAprovadoEvent`/`PagamentoRecusadoEvent` → consumer da DonationAPI consolida o Valor Arrecadado. O endpoint de doação **não** atualiza o valor direto (ver [[Domain Events]]). Os eventos de resultado também são consumidos por uma **Azure Function** (`NotificationFunction`, gerenciada, fora do AKS) que **notifica o doador** — segundo consumidor via tópico/subscription (ver [[PRD-07 - Notificações]]).
 3. **Kubernetes** — cluster **AKS (Azure)**, deploy via **Helm**. Entregar `.yaml`/charts (Deployments, Services, ConfigMaps).
-4. **Observabilidade** — expor `/health` e `/metrics` (OpenTelemetry); **Grafana + Prometheus** com ≥1 dashboard de métricas reais (CPU/memória dos pods, contagem de requisições). **Sem Zabbix.**
+4. **Observabilidade** — expor `/health` e `/metrics` (OpenTelemetry); **Grafana + Prometheus** com ≥1 dashboard de métricas reais de aplicação/negócio **+ Zabbix** para infra/host (CPU/memória dos pods/nós), disponibilidade e alertas. Ver [[Requisitos Técnicos]] §5.
 5. **CI/CD** — **GitHub Actions** a cada push na branch principal: roda testes, compila (.NET build) e gera imagem Docker; deploy no AKS. (Mínimo exigido pelo enunciado: gerar a imagem.)
 
 ## C. Bônus (sem impacto na nota)
@@ -38,4 +38,4 @@ projeto: Conexão Solidária
 - **Consistência eventual** entre a doação enviada e o Valor Arrecadado exibido (janela alvo < 10 s — RNF15).
 - **Idempotência** no consumer da DonationAPI (reentrega de mensagem não soma a doação 2x — RN06.10 / RNF12).
 - **Stack .NET** ✅ **.NET 8**; broker ✅ **Azure ServiceBus**.
-- **Observabilidade** ✅ **Grafana + Prometheus + OpenTelemetry** (sem Zabbix).
+- **Observabilidade** ✅ **Grafana + Prometheus + OpenTelemetry** (aplicação/negócio) **+ Zabbix** (infra/host, disponibilidade e alertas).

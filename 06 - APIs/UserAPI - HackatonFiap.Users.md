@@ -54,6 +54,8 @@ prds: [PRD-01, PRD-02, PRD-03]
 | GET | `/ready` | readiness |
 | GET | `/metrics` | métricas Prometheus (runtime, ASP.NET Core + `users_logins_total`, `users_registrations_total`) |
 
+> Os endpoints `/health`, `/ready` e `/metrics` são consumidos tanto pelo **Prometheus** (métricas de aplicação → Grafana) quanto pelo **Zabbix** (infra/host e disponibilidade: *scrape* do `/metrics`, *web scenarios* em `/health`/`/ready`). Ver [[Decisões de Arquitetura (ADRs)|ADR-002]].
+
 ## Tipos
 
 **UserResponse**

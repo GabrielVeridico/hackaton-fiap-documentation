@@ -6,7 +6,7 @@ status: definido
 
 # Visão Geral de Arquitetura
 
-> Arquitetura do MVP: 3 microsserviços em **AKS**, mensageria assíncrona (**Service Bus**), **CQRS** (SQL Server + Cosmos), observabilidade (**OpenTelemetry/Prometheus/Grafana**) e **CI/CD** (GitHub Actions). Stack detalhada em [[Requisitos Técnicos]].
+> Arquitetura do MVP: 3 microsserviços em **AKS**, mensageria assíncrona (**Service Bus**), **CQRS** (SQL Server + Cosmos), observabilidade (**OpenTelemetry/Prometheus/Grafana** para aplicação/negócio + **Zabbix** para infra/host e disponibilidade) e **CI/CD** (GitHub Actions). Stack detalhada em [[Requisitos Técnicos]].
 
 ## Componentes
 - **APIM (Azure):** porta de entrada das rotas públicas — rate limit e normalização.
@@ -17,7 +17,7 @@ status: definido
 - **Azure Service Bus:** broker da saga de doação e do fan-out de notificação (tópico + subscriptions) — ver [[Domain Events]].
 - **SQL Server:** escrita transacional, **um banco por serviço**.
 - **Cosmos DB:** read model do Painel — ver [[Escolha de Bancos de Dados]].
-- **Observabilidade:** OpenTelemetry → Prometheus → Grafana.
+- **Observabilidade:** OpenTelemetry → Prometheus → Grafana (métricas de aplicação e negócio). **Zabbix** monitora infraestrutura/host (CPU, memória, pods/nós) e disponibilidade/uptime, concentrando os alertas — coleta via *scrape* do `/metrics` (formato Prometheus), **Zabbix Agent** (templates host/K8s) e *web scenarios* em `/health` e `/ready`. Ver [[Decisões de Arquitetura (ADRs)|ADR-002]].
 
 ## Diagrama
 
@@ -46,6 +46,7 @@ flowchart TB
         Otel["OpenTelemetry"]
         Prom["Prometheus"]
         Graf["Grafana"]
+        Zbx["Zabbix — infra/host + disponibilidade + alertas"]
     end
 
     User --> APIM
@@ -66,6 +67,7 @@ flowchart TB
     PaymentAPI -. métricas .-> Otel
     Otel --> Prom
     Prom --> Graf
+    AKS -. "Zabbix Agent + scrape /metrics + /health" .-> Zbx
 ```
 
 **Relacionados:** [[Requisitos Técnicos]] · [[Context Map]] · [[Domain Events]] · [[Escolha de Bancos de Dados]]

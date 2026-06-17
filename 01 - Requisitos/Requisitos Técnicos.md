@@ -19,7 +19,7 @@ status: definido
 | Banco de escrita (X) | **SQL Server** | um banco por serviço — [[Escolha de Bancos de Dados]] |
 | Banco de leitura (Y) | **Cosmos DB** (API NoSQL) | read model do Painel — [[Escolha de Bancos de Dados]] |
 | Cluster | **AKS** (Azure Kubernetes Service) | deploy via Helm — §7 |
-| Observabilidade | **OpenTelemetry + Prometheus + Grafana** | sem Zabbix — §5 |
+| Observabilidade | **OpenTelemetry + Prometheus + Grafana** (aplicação/negócio) **+ Zabbix** (infra/host + disponibilidade) | §5 |
 | API Gateway | **Azure APIM** | rate limit + normalização — §6 |
 | CI/CD | **GitHub Actions** | testes + build + imagem + deploy — §8 |
 | Testes | **xUnit + NSubstitute** | em todos os serviços — §9 |
@@ -61,8 +61,9 @@ O **consumer da DonationAPI**, ao processar `PagamentoAprovadoEvent`, atualiza o
 - **OpenTelemetry** em todos os serviços; `correlationId` e `traceId` propagados entre requisições.
 - **Logging** estruturado em JSON de request e response.
 - Cada serviço expõe as rotas **`/health`** e **`/metrics`**.
-- **Prometheus** coleta as métricas; **Grafana** exibe os dashboards com métricas reais. **Não** será usado Zabbix.
-- A **NotificationFunction** roda **fora do AKS**; sua observabilidade é via **Application Insights / Azure Monitor** (portanto fora do Prometheus/Grafana in-cluster).
+- **Prometheus** coleta as métricas e **Grafana** exibe os dashboards com métricas reais de **aplicação e negócio**.
+- **Zabbix** (camada complementar) monitora **infraestrutura/host** (CPU, memória, pods/nós do AKS) e **disponibilidade/uptime**, concentrando os **alertas** operacionais. Coleta por três vias: (1) *scrape* dos endpoints `/metrics` (formato Prometheus) via item HTTP + *preprocessing*; (2) **Zabbix Agent** (DaemonSet) com templates de host/Kubernetes; (3) *web scenarios* sobre `/health` e `/ready`. Não substitui o Prometheus/Grafana — ver [[Decisões de Arquitetura (ADRs)|ADR-002]].
+- A **NotificationFunction** roda **fora do AKS**; sua observabilidade é via **Application Insights / Azure Monitor** (portanto fora do Prometheus/Grafana/Zabbix in-cluster).
 
 ## 6. API Gateway
 
@@ -88,7 +89,7 @@ Testes de unidade com **xUnit + NSubstitute** em todos os microsserviços, execu
 | Microsserviços (≥ 2 serviços) | ✅ | 3 serviços (§2) |
 | Mensageria assíncrona (broker + consumer) | ✅ | Service Bus + saga + consumer (§3) |
 | Kubernetes (Deployments/Services/ConfigMaps) | ✅ | AKS + Helm (§7) |
-| Observabilidade (`/health` ou `/metrics` + Grafana) | ✅ | OpenTelemetry + Prometheus + Grafana (§5) |
+| Observabilidade (`/health` ou `/metrics` + Grafana) | ✅ | OpenTelemetry + Prometheus + Grafana + Zabbix (§5) |
 | CI/CD (build .NET + imagem a cada push) | ✅ | GitHub Actions (§8) |
 | Testes de unidade *(bônus)* | ✅ | xUnit + NSubstitute (§9) |
 | API Gateway *(bônus)* | ✅ | Azure APIM (§6) |

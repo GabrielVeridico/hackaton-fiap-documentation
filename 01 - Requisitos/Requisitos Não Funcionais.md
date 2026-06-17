@@ -45,7 +45,7 @@ status: em-definição
 
 | ID    | Requisito                                                                            | Como medir / verificar                     | Meta / Valor alvo                     | Prioridade  |
 | ----- | ------------------------------------------------------------------------------------ | ------------------------------------------ | ------------------------------------- | ----------- |
-| RNF09 | Disponibilidade (uptime) dos serviços críticos                                       | Monitoramento (Grafana/Prometheus)         | 99,5%                                 | Must        |
+| RNF09 | Disponibilidade (uptime) dos serviços críticos                                       | Uptime via **Zabbix** (`/health`/`/ready`) + Grafana/Prometheus         | 99,5%                                 | Must        |
 | RNF10 | Health checks (`/health` liveness + readiness) usados pelo K8s para auto-recuperação | Probes nos manifests; teste de kill de pod | Criar rotas nas APIs de health check. | Must        |
 | RNF11 | Entrega garantida de eventos (ao menos uma vez) com fila de mensagens mortas (DLQ)   | DLQ configurada; teste de falha de consumo | Eventualmente processar               | Must        |
 | RNF12 | Idempotência do consumer da DonationAPI (reprocessar `PagamentoAprovadoEvent` não soma em duplicidade) | Teste de reentrega — ver **RN06.10** | Dedup por `doacaoId` via tabela de eventos processados (inbox) | Must |
@@ -80,14 +80,16 @@ status: em-definição
 
 ## 6. Observabilidade & Monitoramento
 
+> **Divisão de responsabilidades:** **Prometheus + Grafana** cobrem métricas de **aplicação e negócio** (via OpenTelemetry); **Zabbix** cobre **infraestrutura/host, disponibilidade e alertas** — coleta por *scrape* do `/metrics`, **Zabbix Agent** (host/K8s) e *web scenarios* em `/health`/`/ready`. Ver [[Decisões de Arquitetura (ADRs)|ADR-002]].
+
 | ID    | Requisito                                                                     | Como medir / verificar                           | Meta / Valor alvo                                                              | Prioridade |
 | ----- | ----------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------ | ---------- |
-| RNF25 | Endpoints `/health` e/ou `/metrics` expostos por cada serviço                 | Verificação direta — ver [[Requisitos Técnicos]] | Endpoint com health e metrics usando OpenTelemetry                             | Must       |
-| RNF26 | Dashboard real no Grafana com métricas de negócio e infraestrutura            | Dashboard funcional                              | Dados com métricas reais                                                       | Must       |
-| RNF27 | Monitoramento de infra (CPU/memória/pods) via Prometheus                      | Prometheus + exporters, visível no Grafana       | Métricas de infra no Grafana (sem Zabbix)                                      | Must       |
+| RNF25 | Endpoints `/health` e/ou `/metrics` expostos por cada serviço                 | Verificação direta — ver [[Requisitos Técnicos]] | Endpoint com health e metrics usando OpenTelemetry (consumidos por Prometheus e Zabbix)                             | Must       |
+| RNF26 | Dashboards reais: **Grafana** (aplicação/negócio) + **Zabbix** (infra/host)            | Dashboard funcional                              | Dados com métricas reais                                                       | Must       |
+| RNF27 | Monitoramento de infra/host (CPU/memória/pods/nós) via **Zabbix**                      | Zabbix Agent (templates host/K8s) + scrape do /metrics       | Infra monitorada no **Zabbix** (dashboards + alertas)                                      | Must       |
 | RNF28 | Logs estruturados (JSON) com correlação de requisições (correlation/trace id) | Inspeção de logs                                 | Logs rastreáveis                                                               | Must       |
 | RNF29 | Métricas de fila (profundidade, lag, mensagens em DLQ) visíveis               | Dashboard / exporter                             | Métricas no grafana                                                            | Must       |
-| RNF30 | Alertas configurados para indisponibilidade e backlog anormal                 | Regras de alerta no Grafana e Prometheus         | Configuração de alertas para consumo excessivo de serviço e uso abusivo de CPU | Must       |
+| RNF30 | Alertas configurados para indisponibilidade e backlog anormal                 | Triggers/ações no **Zabbix** (indisponibilidade, CPU/memória) + Grafana/Prometheus (backlog de fila)         | Alertas para indisponibilidade, consumo excessivo de serviço e uso abusivo de CPU | Must       |
 
 ---
 
