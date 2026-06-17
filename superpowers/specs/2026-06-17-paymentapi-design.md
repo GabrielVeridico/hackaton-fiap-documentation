@@ -3,7 +3,7 @@ tags: [hackaton-fiap, spec, design, paymentapi]
 projeto: Conexão Solidária
 servico: HackatonFiap.Payments
 data: 2026-06-17
-status: aprovação-pendente
+status: aprovado
 ---
 
 # PaymentAPI (HackatonFiap.Payments) — Design
