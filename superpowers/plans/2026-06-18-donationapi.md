@@ -3687,6 +3687,10 @@ on:
 env:
   IMAGE_NAME: hackatonfiap-donations
 
+# Princípio do menor privilégio: o token só precisa ler o repo para checkout/build.
+permissions:
+  contents: read
+
 jobs:
   ci:
     name: Build & Test
@@ -3703,7 +3707,8 @@ jobs:
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
 ```
 
-> O bloco de CD (deploy AKS) do CatalogAPI pode ser readicionado depois, trocando `fcg-catalog`→`hackatonfiap-donations`, `-f CatalogAPI/Dockerfile`→`-f Dockerfile`, e os manifests `k8s/*`. Mantido fora do MVP de CI para não depender de secrets ausentes; registrar como follow-up.
+> **Segurança (resposta ao security review do scaffold):** o arquivo `ci-cd.yaml` herdado do CatalogAPI é **substituído** por este; isso remove o bloco Trivy com `exit-code: '0'` (gate de segurança que não falhava) e o `trivy-action@master` (ref mutável). O `permissions: contents: read` no topo elimina as permissões default excessivas do `GITHUB_TOKEN`.
+> O bloco de CD (deploy AKS) do CatalogAPI pode ser readicionado depois, trocando `fcg-catalog`→`hackatonfiap-donations`, `-f CatalogAPI/Dockerfile`→`-f Dockerfile`, e os manifests `k8s/*`. **Ao readicioná-lo, obrigatoriamente:** (a) usar `exit-code: '1'` no Trivy (com `ignore-unfixed: true` se quiser tolerar advisories sem patch) para que HIGH/CRITICAL **falhem** o job antes do push/deploy; (b) **pinar** `aquasecurity/trivy-action` (e demais actions de terceiros) por tag ou commit SHA (ex.: `@0.24.0`), nunca `@master`; (c) habilitar Dependabot para actions. Mantido fora do MVP de CI para não depender de secrets ausentes; registrar como follow-up.
 
 - [ ] **Step 2: Atualizar `.github/workflows/k8s/deployment.yaml`**
 
