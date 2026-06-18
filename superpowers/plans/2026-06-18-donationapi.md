@@ -1055,6 +1055,12 @@ using HackatonFiap.Donations.Domain.Entities;
 
 namespace HackatonFiap.Donations.Application.Abstractions;
 
+/// <summary>
+/// Inbox de idempotência do consumer (RN06.10). Implementações DEVEM garantir unicidade de
+/// <c>DonationId</c> (chave primária/índice único), de modo que duas consolidações concorrentes
+/// da mesma doação não persistam ambas: a segunda falha no SaveChanges da transação única
+/// (Donation + Campaign + ProcessedEvent), faz rollback atômico e converge para no-op na reentrega.
+/// </summary>
 public interface IProcessedEventStore
 {
     Task<bool> ExistsAsync(Guid donationId, CancellationToken cancellationToken = default);
@@ -2092,10 +2098,12 @@ public sealed class ProcessPaymentApprovedCommandHandler
 
         donation.Approve();
 
-        Campaign? campaign = await _campaigns.GetByIdAsync(command.CampaignId, cancellationToken);
+        // Fonte de verdade: a doação persistida (campanha e valor validados por nós no POST),
+        // não os campos do evento recebido — evita creditar campanha/valor divergentes.
+        Campaign? campaign = await _campaigns.GetByIdAsync(donation.CampaignId, cancellationToken);
         if (campaign is not null)
         {
-            campaign.AddRaised(command.Amount);
+            campaign.AddRaised(donation.Amount);
             if (campaign.Status == CampaignStatus.Active && campaign.AmountRaised >= campaign.Goal)
             {
                 campaign.Complete(CompletionReason.GoalReached);
@@ -2112,7 +2120,7 @@ public sealed class ProcessPaymentApprovedCommandHandler
         }
 
         DonationMetrics.DonationsApproved.Add(1);
-        DonationMetrics.AmountRaised.Add((double)command.Amount);
+        DonationMetrics.AmountRaised.Add((double)donation.Amount);
         return Result.Success();
     }
 }
