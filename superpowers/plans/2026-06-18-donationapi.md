@@ -2101,10 +2101,15 @@ public sealed class ProcessPaymentApprovedCommandHandler
         // Fonte de verdade: a doação persistida (campanha e valor validados por nós no POST),
         // não os campos do evento recebido — evita creditar campanha/valor divergentes.
         Campaign? campaign = await _campaigns.GetByIdAsync(donation.CampaignId, cancellationToken);
-        if (campaign is not null)
+
+        // Só consolida em campanha ATIVA. Se ela encerrou (cancelada/expirada) entre o request e
+        // o resultado do pagamento, a doação fica aprovada (o pagamento ocorreu), mas o valor NÃO
+        // é somado a uma campanha terminal (invariante: estados terminais não mudam).
+        var consolidated = campaign is not null && campaign.Status == CampaignStatus.Active;
+        if (consolidated)
         {
-            campaign.AddRaised(donation.Amount);
-            if (campaign.Status == CampaignStatus.Active && campaign.AmountRaised >= campaign.Goal)
+            campaign!.AddRaised(donation.Amount);
+            if (campaign.AmountRaised >= campaign.Goal)
             {
                 campaign.Complete(CompletionReason.GoalReached);
                 DonationMetrics.CampaignsCompleted.Add(1);
@@ -2114,13 +2119,13 @@ public sealed class ProcessPaymentApprovedCommandHandler
         await _processed.AddAsync(new ProcessedEvent(command.DonationId, _clock.UtcNow), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        if (campaign is not null)
+        if (consolidated)
         {
-            await _readStore.UpsertAsync(campaign.ToReadModel(), cancellationToken);
+            await _readStore.UpsertAsync(campaign!.ToReadModel(), cancellationToken);
+            DonationMetrics.AmountRaised.Add((double)donation.Amount);
         }
 
         DonationMetrics.DonationsApproved.Add(1);
-        DonationMetrics.AmountRaised.Add((double)donation.Amount);
         return Result.Success();
     }
 }
